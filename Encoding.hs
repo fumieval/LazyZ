@@ -13,6 +13,7 @@ encodeNat :: Int -> Expr e
 encodeNat 32 = S :$ (K :$ (S :$ (S :$ (K :$ S) :$ K) :$ I)) :$ (S :$ (S :$ I :$ I) :$ I :$ (S :$ (S :$ (K :$ S) :$ K) :$ I))
 encodeNat 64 = S :$ (S :$ (S :$ (K :$ S) :$ K)) :$ (S :$ I :$ I) :$ (S :$ (S :$ (K :$ S) :$ K) :$ I)
 encodeNat 128 = S :$ (K :$ (S :$ (S :$ (K :$ S) :$ K) :$ I)) :$ (S :$ (S :$ (S :$ (K :$ S) :$ K)) :$ (S :$ I :$ I) :$ (S :$ (S :$ (K :$ S) :$ K) :$ I))
+encodeNat 256 = S :$ I :$ I :$ (S :$ I :$ I :$ encodeNat 2)
 encodeNat 1 = I
 encodeNat 0 = K :$ I
 encodeNat n = S :$ (S :$ (K :$ S) :$ K) :$ encodeNat (n - 1)
@@ -25,7 +26,7 @@ fromString = fromList . map (encodeNat . ord)
 fromString' :: String -> Expr e
 fromString' = fromList . map (encodeNat' . toInteger . ord)
 
-data ChurchDecode = Increment | Value {-# UNPACK #-} !Int deriving (Show)
+data ChurchDecode = Increment | Value {-# UNPACK #-} !Int
 decoder Increment (Value n) = Value (n + 1)
 decoder _ _ = error "decoding error"
 

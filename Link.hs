@@ -3,7 +3,6 @@ module LazyZ.Link where
 
 import Control.Applicative
 import Data.List as L
-import qualified Data.Map as Map
 import LazyZ.Program as P
 
 optimize :: ExprP e -> ExprP e
@@ -19,9 +18,9 @@ optimize = optimize' True
         optimize' _ x = x
 
 link :: String -- entrypoint
-    -> Map.Map String (ExprP e) -- definitions
+    -> [(String, ExprP e)] -- definitions
     -> Maybe (ExprP e)
-link entrypoint defs = link' <$> Map.lookup "main" defs <*> pure (Map.toList $ Map.delete "main" defs)
+link entrypoint defs = link' (filter ((/="main") . fst) defs) <$> lookup "main" defs 
     where
-        link' e ((n, x):xs) = link' (replace n x e) xs
-        link' e [] = e
+        link' ((n, x):xs) e = link' xs (replace n x e)
+        link' [] e = e
