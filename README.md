@@ -5,10 +5,10 @@ Lazy Z (ver0.1) by @fumieval
 Lazy Zは、Lazy Kの「組み込み関数がS、K、Iの3つしかない」という特長を継承しつつ、文字列・数値リテラル、ラムダ式を導入した言語です。
 
 # 構文
-main input = cons (f input) str;  -- 関数定義、ラムダ式、行コメント
-f = \x -> x 0; -- ラムダ式、数値リテラル
-cons x y = \f -> f x y; {- ブロックコメント -}
-str = "Hello, world!"; -- 文字列リテラル
+    main input = cons (f input) str;  -- 関数定義、ラムダ式、行コメント
+    f = \x -> x 0; -- ラムダ式、数値リテラル
+    cons x y = \f -> f x y; {- ブロックコメント -}
+    str = "Hello, world!"; -- 文字列リテラル
 
 # ビルド
 $ ghc -o LazyZ -O2 Main.hs LazyK.hs Combinator.hs Encoding.hs Expr.hs Interface.hs Link.hs Program.hs Numbers.hs Syntax.hs
