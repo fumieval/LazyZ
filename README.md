@@ -11,7 +11,7 @@ Lazy Zは、Lazy Kの「組み込み関数がS、K、Iの3つしかない」と�
     str = "Hello, world!"; -- 文字列リテラル
 
 # ビルド
-$ ghc -o LazyZ -O2 Main.hs LazyK.hs Combinator.hs Encoding.hs Expr.hs Interface.hs Link.hs Program.hs Numbers.hs Syntax.hs
+$ ghc -o LazyZ -O2 Main.hs LazyK.hs Combinator.hs Encoding.hs Expr.hs Link.hs Program.hs Numbers.hs Syntax.hs
     
 # コマンド
 * LazyZ (build|execute|run) [input file(s)]
@@ -23,3 +23,5 @@ $ ghc -o LazyZ -O2 Main.hs LazyK.hs Combinator.hs Encoding.hs Expr.hs Interface.
 * パターンマッチ
 * オフサイドルール
 * where節
+* 中置演算子
+* 最適化
