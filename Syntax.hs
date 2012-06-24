@@ -20,7 +20,7 @@ encodeLiteral (LChar c) = encodeNat' (toInteger $ ord c)
 
 lexer = T.makeTokenParser haskellStyle
 
-identifier = T.identifier lexer
+identifier = T.identifier lexer <|> parens operator
 natural = T.natural lexer
 stringLiteral = T.stringLiteral lexer
 charLiteral = T.charLiteral lexer
@@ -28,6 +28,7 @@ parens = T.parens lexer
 whiteSpace = T.whiteSpace lexer
 lexeme = T.lexeme lexer
 commaSep = T.commaSep lexer
+operator = T.operator lexer
 
 indentLevel = length . takeWhile isSpace
 
@@ -60,10 +61,14 @@ lambda = string "\\"
 term :: Parser (ExprP Literal)
 term = many (char ' ') *> term' <* many (char ' ')
     where
-        term' = parens expr
+        term' = try (parens expr)
+            <|> section
             <|> lambda
             <|> External <$> literal
             <|> Var <$> identifier
+            
+section :: Parser (ExprP Literal)
+section = Var <$> (char '(' *> operator <* char ')')
 
 expr :: Parser (ExprP Literal)
 expr = foldl Apply <$> term <*> many term

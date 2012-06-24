@@ -72,6 +72,8 @@ evalEx t x = x
 simpl :: Expr e -> Expr e
 simpl (I :$ x) = x
 simpl (K :$ x :$ y) = x
+simpl (S :$ (K :$ x) :$ y :$ z) = simpl (x :$ (y :$ z))
+simpl (S :$ x :$ (K :$ y) :$ z) = simpl (x :$ z :$ y)
 simpl (f :$ g) = simpl f :$ simpl g
 simpl x = x
 

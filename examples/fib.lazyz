@@ -1,0 +1,12 @@
+
+zipWith f xs ys = (:) (f (head xs) (head ys)) (zipWith f (tail xs) (tail ys));
+
+fibs = (:) 1 ((:) 1 (zipWith (+) fibs (tail fibs)));
+
+main = const (show fibs);
+
+show xs = showInteger (head xs) ((:) 10 (show (tail xs)));
+
+-- stolen from http://d.hatena.ne.jp/yshl/20100124
+divmod10 n = n (\f a b -> ifgt 9 b (f a (succ b)) (f (succ a) 0) ) (:) 0 0;
+showInteger n str = divmod10 n \d r -> (ifnonzero d (showInteger d) id) ((:) ((+) 48 r) str);

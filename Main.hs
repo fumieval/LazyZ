@@ -1,7 +1,7 @@
 
 import LazyZ.Syntax (lazyZparser, encodeLiteral)
 import LazyZ.Program (compile, ExprP, bindBuiltins)
-import LazyZ.Link (link, optimize)
+import LazyZ.Link (link, optimize, transformRecursion, toMap)
 import LazyZ.Expr (simpl, Expr, showUnlambda)
 import LazyZ.LazyK (unlambdaParser, runLazyK)
 
@@ -14,7 +14,7 @@ import System.IO
 import System.Environment (getArgs)
 
 build :: [(String, ExprP e)] -> Maybe (Expr e)
-build = fmap (simpl . bindBuiltins . compile . optimize) . link "main"
+build = fmap (simpl . bindBuiltins . compile . optimize) . link "main" . transformRecursion . toMap
 
 buildFiles :: [FilePath] -> IO (Either String (Expr ()))
 buildFiles files = mapM (parseFromFile lazyZparser) files >>= \progs ->

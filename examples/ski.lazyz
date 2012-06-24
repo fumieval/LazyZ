@@ -1,0 +1,3 @@
+cons x y = \f -> f x y;
+main input = str;
+str = cons 'S' (cons 'K' (cons 'I' str));

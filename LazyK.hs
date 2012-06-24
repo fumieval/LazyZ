@@ -9,7 +9,6 @@ import LazyZ.Encoding
 import Data.Maybe (listToMaybe)
 import Data.Char (chr, ord)
 
-
 unlambdaParser :: Read e => Parser (Expr e)
 unlambdaParser = char '`' *> ((:$) <$> unlambdaParser <*> unlambdaParser)
     <|> char 's' *> pure S

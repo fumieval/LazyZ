@@ -29,12 +29,16 @@ compile (Lambda p e) = bindee p $ compile e
 compile (Var i) = Free i
 compile (External x) = Extern x
 
+decompile :: Expr e -> ExprP e
+decompile (x :$ y) = decompile x `Apply` decompile y
+decompile (Free v) = Var v
+decompile (Extern x) = External x
+decompile I = Var "I"
+decompile K = Var "K"
+decompile S = Var "S"
+
 builtins = [("I", I), ("K", K), ("S", S)]
 
 bindBuiltins :: Expr e -> Expr e
 bindBuiltins = flip (foldr $ uncurry subst) builtins
 
-transformRecursion :: String -> Expr e -> Expr e
-transformRecursion s e
-    | s `elem` frees e = LC.fix $ bindee s e
-    | otherwise = e
