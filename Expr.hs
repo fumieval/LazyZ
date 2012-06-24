@@ -26,7 +26,7 @@ instance Functor Expr where
     fmap _ K = K
     fmap _ S = S
     fmap _ (Free x) = Free x
-
+    
 instance Monad Expr where
     return = Extern
     Extern x >>= f = f x
@@ -77,6 +77,7 @@ simpl (S :$ x :$ (K :$ y) :$ z) = simpl (x :$ z :$ y)
 simpl (f :$ g) = simpl f :$ simpl g
 simpl x = x
 
+
 -- -------------------------------------------------------
 -- Variables and bindings
 
@@ -111,3 +112,21 @@ showUnlambda S = "s"
 showUnlambda (Free x) = "[" ++ x ++ "]"
 showUnlambda (Extern e) = "<" ++ show e ++ ">"
 showUnlambda (a :$ b) = "`" ++ showUnlambda a ++ showUnlambda b
+
+
+-- -------------------------------------------------------
+-- Partial Evaluations
+{- Staticの中はコンパイル時に評価するが、その中にあったとしてもRuntimeは評価しない。 -}
+{-
+data EvalType e = Static (EvalType e) | Runtime (Expr e) | Wrap (Expr e) | App (EvalType e) (EvalType e)
+
+parEval :: EvalType e -> Expr e
+parEval (Static x) = parEval' x
+parEval (Runtime x) = x
+parEval (App s t) = parEval s `apply` parEval t
+
+
+parEval' (Runtime x) = x
+parEval' (x `App` y) = parEval' x `apply` parEval' y
+parEval' x = x
+-}

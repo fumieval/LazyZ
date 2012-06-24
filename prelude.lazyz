@@ -25,6 +25,8 @@ null list = list (\x y -> False);
 
 listOf x = fix ((:) x);
 
+(++) xs ys = if (null xs) ys ((:) (head xs) ((++) (tail xs) ys));
+
 -- Church numerals
 succ n = \f -> \x -> (f ((n f) x));
 (+) n = n succ;
