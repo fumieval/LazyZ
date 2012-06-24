@@ -2,8 +2,6 @@ module LazyZ.Program where
 import Prelude hiding (length)
 import LazyZ.Expr hiding (length)
 import Data.List ((\\))
-import qualified LazyZ.Combinator as LC
-
 data ExprP e = Var String | Apply (ExprP e) (ExprP e) | Lambda String (ExprP e) | External e deriving Show
 
 length :: ExprP e -> Int
@@ -41,4 +39,3 @@ builtins = [("I", I), ("K", K), ("S", S)]
 
 bindBuiltins :: Expr e -> Expr e
 bindBuiltins = flip (foldr $ uncurry subst) builtins
-

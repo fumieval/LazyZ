@@ -8,19 +8,24 @@ import LazyZ.Expr (Expr(..))
 import Data.Maybe
 import qualified Data.Map as M
 
--- unique :: M.Map String (ExprP e) -> M.Map String (ExprP e)
+unique :: ExprP e -> ExprP e
+unique = unique' M.empty where
+    unique' m (Apply x y) = unique' m x `Apply` unique' m y
+    unique' m (Lambda v x) = Lambda v' $ unique' (M.insertWith (+) v 1 m) (replace v (Var v') x) 
+        where
+            v' = replicate (maybe 0 id $ M.lookup v m) '\'' ++ v
+    unique' _ x = x
 
 optimize :: ExprP e -> ExprP e
-optimize = optimize' True
+optimize = optimize' True . unique
     where
-        -- optimize' _ e@(Apply (Lambda v x) y)
-        --    | P.length x' < P.length e = x'
-        --    where
-        --        x'= replace v y x
-        optimize' _ (Lambda v x) = Lambda v $ optimize x
-        optimize' True (Apply x y) = optimize' False $ optimize x `Apply` optimize y
+        optimize' _ e@(Apply (Lambda v x) y)
+            | P.length x' < P.length e = optimize' True x'
+            where
+                x' = replace v y x
+        optimize' _ (Lambda v x) = Lambda v $ optimize' True x
+        optimize' True (Apply x y) = optimize' False $ optimize' True x `Apply` optimize' True y
         optimize' _ x = x
-
 
 transformRecursion :: M.Map String (ExprP e) -> M.Map String (ExprP e)
 transformRecursion table = M.mapWithKey trans table
