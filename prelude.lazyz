@@ -27,6 +27,8 @@ listOf x = fix ((:) x);
 
 (++) xs ys = if (null xs) ys ((:) (head xs) ((++) (tail xs) ys));
 
+map f xs = if (null xs) empty ((:) (f (head xs)) (map f (tail xs)));
+
 -- Church numerals
 succ n = \f -> \x -> (f ((n f) x));
 (+) n = n succ;

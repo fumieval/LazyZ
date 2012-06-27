@@ -39,9 +39,13 @@ length :: Expr e -> Int
 length (f :$ g) = length f + length g + 1
 length _ = 1
 
-internalize :: Expr (Expr e) -> Expr e
-internalize (f :$ g) = internalize f :$ internalize g
-internalize (Extern f) = f
+equiv :: Expr e -> Expr e -> Bool
+equiv f g = fmap (const ()) f == fmap (const ()) g
+
+isPrim S = True
+isPrim K = True
+isPrim I = True
+isPrim _ = False
 
 -- -------------------------------------------------------
 -- Applying and evaluation
@@ -58,6 +62,7 @@ eval :: Expr e -> Expr e
 eval (f :$ g) = eval f `apply` eval g
 eval x = x
 
+-- | The 'applyEx' function grants 'apply' the binary operation between external values. 
 applyEx :: (e -> e -> e) -> Expr e -> Expr e -> Expr e
 applyEx t I x = x
 applyEx t (K :$ x) y = x
@@ -76,7 +81,6 @@ simpl (S :$ (K :$ x) :$ y :$ z) = simpl (x :$ (y :$ z))
 simpl (S :$ x :$ (K :$ y) :$ z) = simpl (x :$ z :$ y)
 simpl (f :$ g) = simpl f :$ simpl g
 simpl x = x
-
 
 -- -------------------------------------------------------
 -- Variables and bindings
@@ -97,9 +101,20 @@ subst _ _ e = e
 
 -- | The 'bindee' function transforms an expression to a combinator which binds specified variable when it is applied.
 bindee :: String -> Expr e -> Expr e
-bindee p e | p `notElem` frees e = K :$ e
-bindee p (f :$ g) = S :$ bindee p f :$ bindee p g
-bindee p (Free p') | p == p' = I
+-- refered to John Tromp "Binary Lambda Calculus and Combinatory Logic", 2011 (http://homepages.cwi.nl/~tromp/cl/LC.pdf section 3.2)
+bindee _ (S :$ K :$ _) = S :$ K
+bindee x f              | x `notElem` frees f = K :$ f
+bindee x (Free x')      | x == x' = I
+bindee x (f :$ Free x') | x == x' = f
+bindee x (Free y :$ f :$ Free z)
+    | x == y && x == z = bindee x $ S :$ S :$ K :$ Free x :$ f
+bindee x (f :$ (g :$ h))
+    | isPrim f && isPrim g = bindee x $ S :$ bindee x f :$ g :$ h
+bindee x ((f :$ g) :$ h)
+    | isPrim f && isPrim h = bindee x $ S :$ f :$ bindee x h :$ g
+bindee x ((f :$ g) :$ (h :$ g'))
+    | isPrim f && isPrim h && equiv g g' = bindee x $ S :$ f :$ h :$ g
+bindee x (f :$ g) = S :$ bindee x f :$ bindee x g
 
 -- -------------------------------------------------------
 -- Representations
@@ -113,20 +128,34 @@ showUnlambda (Free x) = "[" ++ x ++ "]"
 showUnlambda (Extern e) = "<" ++ show e ++ ">"
 showUnlambda (a :$ b) = "`" ++ showUnlambda a ++ showUnlambda b
 
-
 -- -------------------------------------------------------
 -- Partial Evaluations
 {- Staticの中はコンパイル時に評価するが、その中にあったとしてもRuntimeは評価しない。 -}
-{-
-data EvalType e = Static (EvalType e) | Runtime (Expr e) | Wrap (Expr e) | App (EvalType e) (EvalType e)
 
-parEval :: EvalType e -> Expr e
-parEval (Static x) = parEval' x
-parEval (Runtime x) = x
-parEval (App s t) = parEval s `apply` parEval t
+data Eval e = Term (Expr e) -- 適用を含まない項
+                | Runtime (Eval e) -- 必ず実行時に評価される項
+                | Static (Eval e) -- コンパイル時に評価される項
+                | Undecided (Eval e) -- 特に指定がない項
+                | App (Eval e) (Eval e) -- 適用
 
+lift :: (Expr e -> Expr e) -> Eval e -> Eval e
+lift f (App x y) = Undecided (lift f x) `App` Undecided (lift f y)
+lift f (Runtime x) = Runtime $ lift f x
+lift f (Static x) = Static $ lift f x
+lift f (Undecided x) = Undecided $ lift f x
+lift f (Term x) = Term $ f x
 
-parEval' (Runtime x) = x
-parEval' (x `App` y) = parEval' x `apply` parEval' y
-parEval' x = x
--}
+flatten :: Eval e -> Expr e
+flatten (Term x) = x
+flatten (Runtime x) = flatten x
+flatten (Static x) = flatten x
+flatten (Undecided x) = flatten x
+flatten (App x y) = flatten x :$ flatten y
+
+partialEval = eval' False where
+    eval' _ (Term x) = x
+    eval' _ (Runtime x) = flatten x
+    eval' _ (Static x) = eval' True x
+    eval' _ (Undecided x) = eval' False x
+    eval' False (App x y) = eval' False x :$ eval' False y
+    eval' True (App x y) = eval' True x `apply` eval' True y

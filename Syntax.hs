@@ -9,7 +9,7 @@ import Text.Parsec.Language (haskellStyle)
 import qualified Text.Parsec.Token as T
 
 import LazyZ.Encoding (encodeNat', fromString', fromList)
-import LazyZ.Program (MustStop, ExprP(..))
+import LazyZ.Program (ExprP(..), DecoratedExprP)
 import LazyZ.Expr (Expr)
 
 data Literal = LNat Integer | LChar Char | LStr String deriving Show
@@ -38,7 +38,7 @@ lazyZparser = some definition
 definition :: Parser (String, ExprP Literal)
 definition = lexeme $ do
     whiteSpace
-    halt <- try (char '#') *> return Halt <|> return id
+    -- halt <- try (char '#') *> return Halt <|> return id
     name <- identifier
     args <- many (whiteSpace *> identifier)
     string "="
@@ -46,7 +46,7 @@ definition = lexeme $ do
     definition <- expr
     whiteSpace
     char ';'
-    return (name, construct args (halt definition))
+    return (name, construct args definition)
 
 construct :: [String] -> ExprP e -> ExprP e
 construct (x:xs) e = currying x xs e
@@ -56,7 +56,7 @@ currying p [] e = Lambda p e
 currying p (p':ps) e = Lambda p (currying p' ps e)
 
 lambda :: Parser (ExprP Literal)
-lambda = string "\\"
+lambda = (char 'λ' <|> char '\\')
     >> currying <$> identifier <*> many (whiteSpace *> identifier)
     <*> (whiteSpace *> string "->" *> expr)
 
@@ -66,8 +66,8 @@ term = whiteSpace *> term' <* whiteSpace
         term' = try (parens expr)
             <|> section
             <|> lambda
-            <|> Halt <$> (char '#' *> term)
-            <|> Halt <$> External <$> literal
+            -- <|> Halt <$> (char '#' *> term)
+            <|> External <$> literal
             <|> Var <$> identifier
             
 section :: Parser (ExprP Literal)
