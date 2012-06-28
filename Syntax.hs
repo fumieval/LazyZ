@@ -8,7 +8,7 @@ import Text.Parsec.String
 import Text.Parsec.Language (haskellStyle)
 import qualified Text.Parsec.Token as T
 
-import LazyZ.Encoding (encodeNat', fromString', fromList)
+import LazyZ.Encoding (encodeNat', fromString, fromList)
 import LazyZ.Program (ExprP(..), DecoratedExprP)
 import LazyZ.Expr (Expr)
 
@@ -16,7 +16,7 @@ data Literal = LNat Integer | LChar Char | LStr String deriving Show
 
 encodeLiteral :: Literal -> Expr e
 encodeLiteral (LNat n) = encodeNat' n
-encodeLiteral (LStr x) = fromString' x
+encodeLiteral (LStr x) = fromString x
 encodeLiteral (LChar c) = encodeNat' (toInteger $ ord c)
 
 lexer = T.makeTokenParser haskellStyle

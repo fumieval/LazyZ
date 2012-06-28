@@ -75,10 +75,10 @@ evalEx t (f :$ g) = applyEx t (evalEx t f) (evalEx t g)
 evalEx t x = x
 
 simpl :: Expr e -> Expr e
-simpl (I :$ x) = x
-simpl (K :$ x :$ y) = x
-simpl (S :$ (K :$ x) :$ y :$ z) = simpl (x :$ (y :$ z))
-simpl (S :$ x :$ (K :$ y) :$ z) = simpl (x :$ z :$ y)
+simpl (I :$ x) = simpl x
+simpl (K :$ x :$ y) = simpl x
+simpl (S :$ (K :$ x) :$ y :$ z) = simpl (simpl x :$ (simpl y :$ simpl z))
+simpl (S :$ x :$ (K :$ y) :$ z) = simpl (simpl x :$ simpl z :$ simpl y)
 simpl (f :$ g) = simpl f :$ simpl g
 simpl x = x
 

@@ -16,12 +16,13 @@ or p q = if p True q;
 
 -- list operations
 (:) x y = \f -> f x y;
+cons = (:);
 empty = \f -> True;
 head list = list True;
 tail list = list False;
 
 null list = list (\x y -> False);
-(!!) n list = head ((n tail) list);
+nth n list = head ((n tail) list);
 
 listOf x = fix ((:) x);
 
@@ -36,8 +37,8 @@ succ n = \f -> \x -> (f ((n f) x));
 (^) a b = b a;
 ifnonzero n x y = (n (const x)) y;
 
-(==) a b = (!!) b ((a ((:) False)) ((:) True (listOf False)));
-(!=) a b = (!!) b ((a ((:) True)) ((:) False (listOf True)));
+(==) a b = nth b ((a ((:) False)) ((:) True (listOf False)));
+(!=) a b = nth b ((a ((:) True)) ((:) False (listOf True)));
 
 ifle m n x y = (m (^) (const x)) (n (^) (const y));
 ifgt m n x y = ifle m n y x;

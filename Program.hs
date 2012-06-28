@@ -2,10 +2,13 @@ module LazyZ.Program where
 
 import Prelude hiding (length)
 
-import Control.Arrow (second)
+import Control.Arrow
 import Control.Applicative
+import Data.Maybe
 import Data.List ((\\))
 import qualified Data.Map as M
+
+import Debug.Trace (traceShow)
 
 import LazyZ.Expr hiding (length)
 import qualified LazyZ.Combinator as LC
@@ -14,6 +17,12 @@ data ExprP e = Var String
              | Apply (ExprP e) (ExprP e)
              | Lambda String (ExprP e)
              | External e deriving (Show, Eq)
+
+instance Functor ExprP where
+    fmap f (External e) = External $ f e
+    fmap _ (Var v) = Var v
+    fmap f (Apply x y) = fmap f x `Apply` fmap f y
+    fmap f (Lambda v b) = Lambda v $ fmap f b
 
 length :: ExprP e -> Int
 length (Apply x y) = length x + length y + 1
@@ -61,18 +70,28 @@ transformRecursion table = M.mapWithKey trans table
     where
         trans name expr
             | name `notElem` vars expr = expr
-            | otherwise = maybe expr (fix . Lambda name) $ link name table
+            | otherwise = maybe expr (fix . Lambda name) $ linkBySubst name table
         fix f = replace "f" f $ decompile $ LC.fix (Free "f")
 
-link :: String -- entrypoint
+linkBySubst :: String -- entrypoint
     -> M.Map String (ExprP e) -- definitions
     -> Maybe (ExprP e)
-link point defs = link' (M.delete point defs) <$> M.lookup point defs
+linkBySubst point defs = link' (M.delete point defs) <$> M.lookup point defs
     where 
-        link' defs e@(Var v) = maybe e id $ link v defs
+        link' defs e@(Var v) = maybe e id $ linkBySubst v defs
         link' defs (Apply f g) = link' defs f `Apply` link' defs g
         link' defs (Lambda v x) = Lambda v $ link' (M.delete v defs) x
         link' _ x = x
+
+linkByLambda :: String -- entrypoint
+    -> M.Map String (ExprP e) -- definitions
+    -> Maybe (ExprP e)
+linkByLambda point defs = chain <$> M.lookup point defs
+    where
+        chain def = foldr bind def (catMaybes $ children def)
+        bind (n, def) x = Apply (Lambda n x) def 
+        children = map parLink . vars
+        parLink name = (,) name <$> flip linkByLambda defs name
 
 builtins = [("I", I), ("K", K), ("S", S)]
 
@@ -97,7 +116,7 @@ data DecoratedExprP e = Wrap (ExprP e) | CompileTime (DecoratedExprP e)
                         deriving (Show, Eq)
 
 build :: String -> [(String, ExprP e)] -> Maybe (Expr e)
-build point = fmap (simpl . bindBuiltins . compile . shorten)
-    . link point
+build point = fmap (bindBuiltins . compile . shorten)
+    . linkByLambda point
     . transformRecursion
     . M.fromList

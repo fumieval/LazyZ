@@ -6,6 +6,9 @@ import Text.Parsec
 import Text.Parsec.String
 import LazyZ.Expr
 import LazyZ.Encoding
+
+import qualified Codec.Binary.UTF8.String as UTF8
+
 import Data.Maybe (listToMaybe)
 import Data.Char (chr, ord)
 
@@ -18,7 +21,7 @@ unlambdaParser = char '`' *> ((:$) <$> unlambdaParser <*> unlambdaParser)
     <|> Extern <$> read <$> (char '<' *> some (satisfy (/='>')) <* char '>')
 
 runLazyK :: (Expr e) -> String -> String
-runLazyK expr = fst . decode . eval . (expr :$) . encode
+runLazyK expr = fst . decode . eval . (expr :$) . flip (curry encode) (repeat 256)
     where
-        encode = fromList . map encodeNat . (++ repeat 256) . map ord
-        decode = toList >>> map decodeNat >>> span (<256) >>> map chr *** listToMaybe
+        encode = fromList <<< map encodeNum <<< uncurry (++) <<< first (map fromEnum <<< UTF8.encode)
+        decode = toList   >>> map decodeNum >>> span (<256)  >>> first (map toEnum   >>> UTF8.decode)
