@@ -1,9 +1,9 @@
 main = 	cons (stdout empty) \out ->
 	cons (listenOn (cons 3838 empty)) \socket ->
-	   cons (accept (cons socket empty)) \handle ->
-	   cons (putStr (cons out (cons "Accepted:" empty)))                      \hole ->
-	   cons (putStr (cons out (cons (head (tail handle)) empty)))              \hole ->
-	   cons (putStr (cons (head handle) (cons "Hello, SKI!\n" empty))) \hole -> 
-	   cons (putStr (cons out (cons "\nSent.\n" empty)))                         \hole ->
-	   cons (sClose (cons socket empty))                                                  \hole ->
-	   main;
+	cons (accept (cons socket empty)) \handle ->
+	cons (putStr (cons out (cons "Accepted:" empty)))                      \hole ->
+	cons (putStr (cons out (cons (head (tail handle)) empty)))              \hole ->
+	cons (putStr (cons (head handle) (cons "Hello, SKI!\n" empty))) \hole -> 
+	cons (putStr (cons out (cons "\nSent.\n" empty)))                         \hole ->
+	cons (sClose (cons socket empty))                                                  \hole ->
+	main;
