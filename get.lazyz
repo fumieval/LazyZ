@@ -1,0 +1,6 @@
+
+main = cons (stdout empty) \out ->
+	cons (connectTo (cons "localhost" (cons 3838 empty))) \handle ->
+	cons (getContents (cons handle empty)) \data ->
+	cons (putStr (cons out (cons data empty))) \y -> 
+	empty;

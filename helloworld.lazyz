@@ -1,0 +1,9 @@
+
+main = cons (listenOn (cons 3838 empty)) \socket ->
+	   cons (accept (cons socket empty)) \handle ->
+	   cons (stdout empty) \out ->
+	   cons (putStr (cons out (cons "Accepted.\n" empty))) \z ->
+	   cons (putStr (cons (head handle) (cons "Hello, SKI!\n\n" empty))) \x ->
+	   cons (putStr (cons out (cons "Sent.\n" empty))) \x ->
+	   cons (sClose (cons socket empty)) \x ->
+	   empty;

@@ -12,6 +12,14 @@ import qualified Codec.Binary.UTF8.String as UTF8
 import Data.Maybe (listToMaybe)
 import Data.Char (chr, ord)
 
+showUnlambda :: Show e => Expr e -> String
+showUnlambda I = "i"
+showUnlambda K = "k"
+showUnlambda S = "s"
+showUnlambda (Free x) = "[" ++ x ++ "]"
+showUnlambda (Extern e) = "<" ++ show e ++ ">"
+showUnlambda (a :$ b) = "`" ++ showUnlambda a ++ showUnlambda b
+
 unlambdaParser :: Read e => Parser (Expr e)
 unlambdaParser = char '`' *> ((:$) <$> unlambdaParser <*> unlambdaParser)
     <|> char 's' *> pure S

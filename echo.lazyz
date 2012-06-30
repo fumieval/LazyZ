@@ -1,0 +1,5 @@
+main = cons (stdout empty) \out ->
+	cons (stdin empty) \in ->
+	cons (getContents (cons in empty)) \data ->
+	cons (putStr (cons out (cons data empty))) \x ->
+	empty;

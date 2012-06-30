@@ -1,25 +1,24 @@
-
-import LazyZ.Syntax (lazyZparser, encodeLiteral)
-import LazyZ.Program (build)
-import LazyZ.Expr (simpl, Expr, showUnlambda)
-import LazyZ.LazyK (unlambdaParser, runLazyK)
-
-import Text.Parsec.Prim (parse)
-import Text.Parsec.String (parseFromFile)
-import Control.Applicative
+module Main where
 
 import Control.Monad
 import Data.Either
 import System.IO
 import System.Environment (getArgs)
+import Text.Parsec.String (parseFromFile)
+
+import LazyZ.Syntax (lazyZparser, encodeLiteral)
+import LazyZ.Expr (Expr)
+import LazyZ.Builder(build)
+import LazyZ.LazyK
+import LazyZ.Interface (runLazyZWithSocket)
 
 buildFiles :: [FilePath] -> IO (Either String (Expr ()))
-buildFiles files = mapM (parseFromFile lazyZparser) files >>= \progs ->
-    case lefts $ progs of
+buildFiles files = (`fmap`mapM (parseFromFile lazyZparser) files) $ \progs ->
+    case lefts progs of
          [] -> case build "main" $ concat $ rights $ progs of
-                    Just expr -> return $ Right $ void $ expr >>= encodeLiteral
-                    Nothing -> return $ Left "Linking Error: main is not defined\n"
-         errors -> return $ Left $ unlines $ map show $ errors
+                    Just expr -> Right $ void $ expr >>= encodeLiteral
+                    Nothing   -> Left "Linking Error\n"
+         errors -> Left $ unlines $ map show $ errors
 
 main = getArgs >>= \args -> case args of
     ("build":xs) -> buildFiles xs
@@ -30,10 +29,11 @@ main = getArgs >>= \args -> case args of
     
     ("run":file:_) -> parseFromFile unlambdaParser file
         >>= either (hPutStr stderr . show) runAndPrint
-    ("run":_) -> parse unlambdaParser "stdin" <$> getLine
-        >>= either (hPutStr stderr . show) runAndPrint
+
+    ("executeZ":xs) -> buildFiles xs
+        >>= either (hPutStr stderr) runLazyZWithSocket
     
-    _ -> putStrLn "Usage: LazyZ (build|execute|run) [input files]"
+    _ -> putStrLn "Usage: LazyZ (build|execute|run|executeZ) [input files]"
     where
         runAndPrint :: Expr () -> IO ()
         runAndPrint = flip fmap getContents . runLazyK >=> putStr

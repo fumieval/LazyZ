@@ -1,26 +1,41 @@
-
-module LazyZ.Evaluator where
-
+module LazyZ.Interface where
+import Debug.Trace
 import Control.Applicative
 import LazyZ.Encoding
 import LazyZ.Expr
 import System.IO
 import qualified Data.Map as M
 import Network
-{-
-stdin :: IO Expr e
-stdin = fromString . getContents
 
-stdout :: Expr e -> IO ()
-stdout = putStr . map chr . takeWhile (<256) . decodeNum . split
--}
+car x = apply x K
+cdr x = apply x (K :$ I)
 
--- アクションの番号と引数のリスト、アクションの結果を引数に取り次の対を返す関数の対。
+runLazyZWithSocket :: Expr e -> IO ()
+runLazyZWithSocket = sequencial lazyZActions . fmap undefined . eval
+
+getStdin :: IO (Expr Handle)
+getStdin = return (Extern stdin)
+
+getStderr :: IO (Expr Handle)
+getStderr = return (Extern stderr)
+
+getStdout :: IO (Expr Handle)
+getStdout = return (Extern stdout)
+
 sequencial :: (M.Map Int ([Expr e] -> IO (Expr e))) -> Expr e -> IO ()
 sequencial _ (K :$ K) = return ()
-sequencial action expr = sequencial' (apply expr K) (apply expr (K :$ I))
+sequencial action expr = sequencial' (car expr) (cdr expr)
     where
-        sequencial' x f = (action M.! decodeNum (apply x K)) (toList $ apply x (K :$ I)) >>= sequencial action . apply f
+        sequencial' x f = ((action M.!) (decodeNum (car x)) $! toList (cdr x)) >>= sequencial action . apply f
+
+getContentsFromExpr :: Expr Handle -> IO (Expr e)
+getContentsFromExpr (Extern h) = fromString' <$> hGetContents h
+
+getLineFromExpr :: Expr Handle -> IO (Expr e)
+getLineFromExpr (Extern h) = fromString' <$> hGetLine h
+
+putStrFromExpr :: Expr Handle -> Expr e -> IO (Expr e')
+putStrFromExpr (Extern h) xs = hPutStr h (toString xs) >> return (K :$ K)
 
 listenOnFromExpr :: Expr e -> IO (Expr Socket)
 listenOnFromExpr port = Extern <$> listenOn (PortNumber $ toEnum $ decodeNum port)
@@ -36,14 +51,26 @@ sCloseFromExpr (Extern sock) = sClose sock >> return (K :$ K)
 connectToFromExpr :: Expr e -> Expr e -> IO (Expr Handle)
 connectToFromExpr host port = Extern <$> connectTo (toString host) (PortNumber $ toEnum $ decodeNum port)
 
-data HandleAndSocket = Handle Handle | Socket Socket -- | T2 c
-fromHandle (Handle x) = x
-fromSocket (Socket x) = x
+-- この型はヤバイ
+data HandleAndSocket = Handle Handle | Socket Socket
+fromHandle (Handle x) = x -- この関数もヤバイ
+fromSocket (Socket x) = x -- この関数も
 
-socketActions :: M.Map Int ([Expr HandleAndSocket] -> IO (Expr HandleAndSocket))
-socketActions = M.fromList $
-    [(10, \(x:_) -> fmap undefined <$> sCloseFromExpr (fromSocket <$> x))
-    ,(11, \(x:_) -> fmap Socket <$> listenOnFromExpr (fromHandle <$> x))
-    ,(12, \(x:_) -> fmap Handle <$> acceptFromExpr (fromSocket <$> x))
-    ,(13, \(x:y:_) -> fmap Handle <$> connectToFromExpr x y)
+lazyZActions :: M.Map Int ([Expr HandleAndSocket] -> IO (Expr HandleAndSocket))
+lazyZActions = M.fromList $
+    [ -- 0 ~ 9 : basic
+	 (0, \(x:_) -> return x)
+	,(1, \(x:_) -> return $! x) -- Strict
+	-- 10 ~ 19: standard IO
+	,(10, const $ fmap Handle <$> getStdin)
+	,(11, const $ fmap Handle <$> getStdout)
+	,(12, const $ fmap Handle <$> getStderr)
+	,(13, \(x:_) -> fmap undefined <$> getContentsFromExpr (fromHandle <$> x))
+	,(14, \(x:y:_) -> fmap undefined <$> putStrFromExpr (fromHandle <$> x) y)
+	,(15, \(x:_) -> fmap undefined <$> getLineFromExpr (fromHandle <$> x))
+    -- 20 ~ 29: socket
+    ,(20, \(x:_) -> fmap Socket <$> listenOnFromExpr x)
+    ,(21, \(x:_) -> fmap Handle <$> acceptFromExpr (fromSocket <$> x))
+    ,(22, \(x:_) -> fmap undefined <$> sCloseFromExpr (fromSocket <$> x))
+    ,(23, \(x:y:_) -> fmap Handle <$> connectToFromExpr x y)	
     ]

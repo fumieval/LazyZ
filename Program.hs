@@ -1,17 +1,10 @@
 module LazyZ.Program where
 
 import Prelude hiding (length)
-
-import Control.Arrow
 import Control.Applicative
 import Data.Maybe
 import Data.List ((\\))
 import qualified Data.Map as M
-
-import Debug.Trace (traceShow)
-
-import LazyZ.Expr hiding (length)
-import qualified LazyZ.Combinator as LC
 
 data ExprP e = Var String
              | Apply (ExprP e) (ExprP e)
@@ -42,16 +35,16 @@ replace v r (Lambda v' x) | v /= v' = Lambda v' $ replace v r x
 replace _ _ x = x
 
 unique :: ExprP e -> ExprP e
-unique = unique' M.empty where
-    unique' m (Apply x y) = unique' m x `Apply` unique' m y
-    unique' m (Lambda v x)
-        | n == 0 = Lambda v $ unique' m' x
-        | otherwise = Lambda v' $ unique' m' (replace v (Var v') x)
+unique = uniq M.empty where
+    uniq count (Apply x y) = uniq count x `Apply` uniq count y
+    uniq count (Lambda v x)
+        | n == 0 = Lambda v $ uniq' x
+        | otherwise = Lambda v' $ uniq' $ replace v (Var v') x
         where
-            n = maybe 0 id $ M.lookup v m
+            n = maybe 0 id $ M.lookup v count
             v' = replicate n '\'' ++ v
-            m' = (M.insertWith (+) v 1 m)
-    unique' _ x = x
+            uniq' = uniq $ M.insertWith (+) v 1 count
+    uniq _ x = x
 
 shorten :: ExprP e -> ExprP e
 shorten = shorten' True . unique where
@@ -59,19 +52,10 @@ shorten = shorten' True . unique where
         | length x' < length e = shorten' True x'
         where
             x' = replace v y x
-    
     shorten' True (Apply x y) = shorten' False
         $ shorten' True x `Apply` shorten' True y
     shorten' _ (Lambda v x) = Lambda v $ shorten' True x
     shorten' _ x = x
-
-transformRecursion :: M.Map String (ExprP e) -> M.Map String (ExprP e)
-transformRecursion table = M.mapWithKey trans table
-    where
-        trans name expr
-            | name `notElem` vars expr = expr
-            | otherwise = maybe expr (fix . Lambda name) $ linkBySubst name table
-        fix f = replace "f" f $ decompile $ LC.fix (Free "f")
 
 linkBySubst :: String -- entrypoint
     -> M.Map String (ExprP e) -- definitions
@@ -88,35 +72,16 @@ linkByLambda :: String -- entrypoint
     -> Maybe (ExprP e)
 linkByLambda point defs = chain <$> M.lookup point defs
     where
-        chain def = foldr bind def (catMaybes $ children def)
-        bind (n, def) x = Apply (Lambda n x) def 
-        children = map parLink . vars
-        parLink name = (,) name <$> flip linkByLambda defs name
+        chain def = foldr bind def (catMaybes $ map parLink $ vars def)
+        bind (n, def) x = Apply (Lambda n x) def
+        parLink name = (,) name <$> linkByLambda name defs
 
-builtins = [("I", I), ("K", K), ("S", S)]
-
-bindBuiltins :: Expr e -> Expr e
-bindBuiltins = flip (foldr $ uncurry subst) builtins
-
-compile :: ExprP e -> Expr e
-compile (Apply f x) = compile f :$ compile x
-compile (Lambda p e) = bindee p $ compile e
-compile (Var i) = Free i
-compile (External x) = Extern x
-
-decompile :: Expr e -> ExprP e
-decompile (x :$ y) = decompile x `Apply` decompile y
-decompile (Free v) = Var v
-decompile (Extern x) = External x
-decompile I = Var "I"
-decompile K = Var "K"
-decompile S = Var "S"
-
-data DecoratedExprP e = Wrap (ExprP e) | CompileTime (DecoratedExprP e)
-                        deriving (Show, Eq)
-
-build :: String -> [(String, ExprP e)] -> Maybe (Expr e)
-build point = fmap (bindBuiltins . compile . shorten)
-    . linkByLambda point
-    . transformRecursion
-    . M.fromList
+transformRecursion :: M.Map String (ExprP e) -> M.Map String (ExprP e)
+transformRecursion table = M.mapWithKey trans table
+    where
+        trans name expr
+            | name `notElem` vars expr = expr
+            | otherwise = maybe expr (fix . Lambda name) $ linkBySubst name table
+        fix f = dup `Apply` (Var "S" `Apply` (Var "K" `Apply` f) `Apply` dup)
+            where
+                dup = Lambda "x" (Var "x" `Apply` Var "x")

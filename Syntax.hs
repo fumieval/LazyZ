@@ -8,16 +8,18 @@ import Text.Parsec.String
 import Text.Parsec.Language (haskellStyle)
 import qualified Text.Parsec.Token as T
 
-import LazyZ.Encoding (encodeNat', fromString, fromList)
-import LazyZ.Program (ExprP(..), DecoratedExprP)
+import LazyZ.Encoding (encodeNat, fromString, fromList)
+import LazyZ.Program (ExprP(..))
 import LazyZ.Expr (Expr)
 
-data Literal = LNat Integer | LChar Char | LStr String deriving Show
+data ExtraNotation e = Pure e | Paren [e] | Bracket [e]
+
+data Literal = LNat Integer | LChar Char | LStr String deriving (Show, Eq)
 
 encodeLiteral :: Literal -> Expr e
-encodeLiteral (LNat n) = encodeNat' n
+encodeLiteral (LNat n) = encodeNat n
 encodeLiteral (LStr x) = fromString x
-encodeLiteral (LChar c) = encodeNat' (toInteger $ ord c)
+encodeLiteral (LChar c) = encodeNat (toInteger $ ord c)
 
 lexer = T.makeTokenParser haskellStyle
 
@@ -28,7 +30,6 @@ charLiteral = T.charLiteral lexer
 parens = T.parens lexer
 whiteSpace = T.whiteSpace lexer
 lexeme = T.lexeme lexer
-commaSep = T.commaSep lexer
 operator = T.operator lexer
 
 indentLevel = length . takeWhile isSpace
@@ -75,6 +76,7 @@ section = Var <$> (char '(' *> operator <* char ')')
 
 expr :: Parser (ExprP Literal)
 expr = foldl Apply <$> term <*> many term
+
 
 literal :: Parser Literal
 literal = LNat <$> natural

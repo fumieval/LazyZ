@@ -1,0 +1,5 @@
+car = head;
+cdr = tail;
+-- xs = (cons '(' (cons '゜' (cons 'ω' (cons '。' (cons ')' empty)))));
+(^-^) = cons (^-^) "あああああああああ";
+main = const ((++) (cdr (car (car (car (car (car (car (car (car (car (^-^))))))))))) endofoutput);
