@@ -32,7 +32,7 @@ getContentsFromExpr :: Expr Handle -> IO (Expr e)
 getContentsFromExpr (Extern h) = fromString <$> hGetContents h
 
 getLineFromExpr :: Expr Handle -> IO (Expr e)
-getLineFromExpr (Extern h) = fromString' <$> hGetLine h
+getLineFromExpr (Extern h) = fromString <$> hGetLine h
 
 putStrFromExpr :: Expr Handle -> Expr e -> IO (Expr e')
 putStrFromExpr (Extern h) xs = hPutStr h (toString xs) >> return (K :$ K)
@@ -50,6 +50,9 @@ sCloseFromExpr (Extern sock) = sClose sock >> return (K :$ K)
 
 connectToFromExpr :: Expr e -> Expr e -> IO (Expr Handle)
 connectToFromExpr host port = Extern <$> connectTo (toString host) (PortNumber $ toEnum $ decodeNum port)
+
+openFileFromExpr :: Expr e -> IO (Expr Handle)
+openFileFromExpr path = Extern <$> openFile (toString path) ReadWriteMode
 
 -- この型はヤバイ
 data HandleAndSocket = Handle Handle | Socket Socket
@@ -73,4 +76,6 @@ lazyZActions = M.fromList $
     ,(21, \(x:_) -> fmap Handle <$> acceptFromExpr (fromSocket <$> x))
     ,(22, \(x:_) -> fmap undefined <$> sCloseFromExpr (fromSocket <$> x))
     ,(23, \(x:y:_) -> fmap Handle <$> connectToFromExpr x y)	
+	-- 30 ~ 39: file
+	,(30, \(x:_) -> fmap Handle <$> openFileFromExpr x)
     ]

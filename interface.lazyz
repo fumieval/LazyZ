@@ -4,6 +4,7 @@ stdin = cons 10;
 stdout = cons 11;
 putStr = cons 14;
 getContents = cons 13;
+getLine = cons 15;
 connectTo = cons 23;
 listenOn = cons 20;
 accept = cons 21;
