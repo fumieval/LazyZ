@@ -1,7 +1,7 @@
 main = cons (stdin empty) \in ->
     cons (stdout empty) \out ->
-	-- cons (getLine (cons in empty)) \host ->
-	cons (connectTo (cons "localhost" (cons 3838 empty))) \handle ->
+	cons (getLine (cons in empty)) \host ->
+	cons (connectTo (cons host (cons 3838 empty))) \handle ->
 	cons (getContents (cons handle empty)) \data ->
 	cons (putStr (cons out (cons data empty))) \y -> 
 	empty;
