@@ -26,10 +26,10 @@ sequencial :: (M.Map Int ([Expr e] -> IO (Expr e))) -> Expr e -> IO ()
 sequencial _ (K :$ K) = return ()
 sequencial action expr = sequencial' (car expr) (cdr expr)
     where
-        sequencial' x f = ((action M.!) (decodeNum (car x)) $! toList (cdr x)) >>= sequencial action . apply f
+        sequencial' x f = (action M.!) (decodeNum $ car x) (toList $ cdr x) >>= sequencial action . apply f . eval
 
 getContentsFromExpr :: Expr Handle -> IO (Expr e)
-getContentsFromExpr (Extern h) = fromString' <$> hGetContents h
+getContentsFromExpr (Extern h) = fromString <$> hGetContents h
 
 getLineFromExpr :: Expr Handle -> IO (Expr e)
 getLineFromExpr (Extern h) = fromString' <$> hGetLine h
