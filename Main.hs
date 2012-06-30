@@ -29,11 +29,14 @@ main = getArgs >>= \args -> case args of
     
     ("run":file:_) -> parseFromFile unlambdaParser file
         >>= either (hPutStr stderr . show) runAndPrint
-
+		
+    ("runZ":file:_) -> parseFromFile unlambdaParser file
+        >>= either (hPutStr stderr . show) runLazyZWithSocket
+		
     ("executeZ":xs) -> buildFiles xs
         >>= either (hPutStr stderr) runLazyZWithSocket
     
-    _ -> putStrLn "Usage: LazyZ (build|execute|run|executeZ) [input files]"
+    _ -> putStrLn "Usage: LazyZ (build|execute|run|executeZ|runZ) [input files]"
     where
         runAndPrint :: Expr () -> IO ()
         runAndPrint = flip fmap getContents . runLazyK >=> putStr

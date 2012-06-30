@@ -10,7 +10,7 @@ import Network
 car x = apply x K
 cdr x = apply x (K :$ I)
 
-runLazyZWithSocket :: Expr e -> IO ()
+runLazyZWithSocket :: Expr () -> IO ()
 runLazyZWithSocket = sequencial lazyZActions . fmap undefined . eval
 
 getStdin :: IO (Expr Handle)
