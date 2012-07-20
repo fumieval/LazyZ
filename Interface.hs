@@ -1,81 +1,90 @@
 module LazyZ.Interface where
-import Debug.Trace
 import Control.Applicative
+import Control.Monad
 import LazyZ.Encoding
 import LazyZ.Expr
 import System.IO
 import qualified Data.Map as M
 import Network
 
-car x = apply x K
-cdr x = apply x (K :$ I)
+runLazyZ :: Expr e -> IO ()
+runLazyZ expr = void $ lazyZeval $ fmap undefined expr :$ Extern (Function $ Extern . crystal . decodeNum)
 
-runLazyZWithSocket :: Expr () -> IO ()
-runLazyZWithSocket = sequencial lazyZActions . fmap undefined . eval
+lazyZeval :: LazyZExpr -> IO LazyZExpr
+lazyZeval (f :$ g) = lazyZeval f >>= (lazyZeval g >>=) . lazyZapply
+lazyZeval (Extern (IO m)) = m
+lazyZeval x = return x
 
-getStdin :: IO (Expr Handle)
-getStdin = return (Extern stdin)
+lazyZapply :: LazyZExpr -> LazyZExpr -> IO LazyZExpr
+lazyZapply (Extern (Function f)) x = return $ f x
+lazyZapply (Extern (IO m)) (Extern (IO n)) = m >>= (n >>=) . lazyZapply
+lazyZapply x (Extern (IO m)) = m >>= lazyZapply x
+lazyZapply (Extern (IO m)) x = m >>= flip lazyZapply x
+lazyZapply I x = return x
+lazyZapply (K :$ x) y = return x
+lazyZapply (S :$ x :$ y) z = lazyZapply x z >>= (lazyZapply y z >>=) . lazyZapply
+lazyZapply f g = return $ f :$ g
 
-getStderr :: IO (Expr Handle)
-getStderr = return (Extern stderr)
+data LazyZExt = IO (IO LazyZExpr) | Function (LazyZExpr -> LazyZExpr) | Data LazyZData
+type LazyZExpr = Expr LazyZExt
 
-getStdout :: IO (Expr Handle)
-getStdout = return (Extern stdout)
-
-sequencial :: (M.Map Int ([Expr e] -> IO (Expr e))) -> Expr e -> IO ()
-sequencial _ (K :$ K) = return ()
-sequencial action expr = sequencial' (car expr) (cdr expr)
-    where
-        sequencial' x f = (action M.!) (decodeNum $ car x) (toList $ cdr x) >>= sequencial action . apply f . eval
-
-getContentsFromExpr :: Expr Handle -> IO (Expr e)
-getContentsFromExpr (Extern h) = fromString <$> hGetContents h
-
-getLineFromExpr :: Expr Handle -> IO (Expr e)
-getLineFromExpr (Extern h) = fromString <$> hGetLine h
-
-putStrFromExpr :: Expr Handle -> Expr e -> IO (Expr e')
-putStrFromExpr (Extern h) xs = hPutStr h (toString xs) >> return (K :$ K)
-
-listenOnFromExpr :: Expr e -> IO (Expr Socket)
-listenOnFromExpr port = Extern <$> listenOn (PortNumber $ toEnum $ decodeNum port)
-
-acceptFromExpr :: Expr Socket -> IO (Expr Handle)
-acceptFromExpr (Extern sock) = encode <$> accept sock
-    where
-        encode (h, host, port) = fromList [Extern h, fromString host, encodeNum (fromEnum port)]
-
-sCloseFromExpr :: Expr Socket -> IO (Expr e)
-sCloseFromExpr (Extern sock) = sClose sock >> return (K :$ K)
-
-connectToFromExpr :: Expr e -> Expr e -> IO (Expr Handle)
-connectToFromExpr host port = Extern <$> connectTo (toString host) (PortNumber $ toEnum $ decodeNum port)
-
-openFileFromExpr :: Expr e -> IO (Expr Handle)
-openFileFromExpr path = Extern <$> openFile (toString path) ReadWriteMode
-
--- この型はヤバイ
-data HandleAndSocket = Handle Handle | Socket Socket
+data LazyZData = Handle Handle | Socket Socket
 fromHandle (Handle x) = x -- この関数もヤバイ
 fromSocket (Socket x) = x -- この関数も
 
-lazyZActions :: M.Map Int ([Expr HandleAndSocket] -> IO (Expr HandleAndSocket))
-lazyZActions = M.fromList $
-    [ -- 0 ~ 9 : basic
-	 (0, \(x:_) -> return x)
-	,(1, \(x:_) -> return $! x) -- Strict
-	-- 10 ~ 19: standard IO
-	,(10, const $ fmap Handle <$> getStdin)
-	,(11, const $ fmap Handle <$> getStdout)
-	,(12, const $ fmap Handle <$> getStderr)
-	,(13, \(x:_) -> fmap undefined <$> getContentsFromExpr (fromHandle <$> x))
-	,(14, \(x:y:_) -> fmap undefined <$> putStrFromExpr (fromHandle <$> x) y)
-	,(15, \(x:_) -> fmap undefined <$> getLineFromExpr (fromHandle <$> x))
-    -- 20 ~ 29: socket
-    ,(20, \(x:_) -> fmap Socket <$> listenOnFromExpr x)
-    ,(21, \(x:_) -> fmap Handle <$> acceptFromExpr (fromSocket <$> x))
-    ,(22, \(x:_) -> fmap undefined <$> sCloseFromExpr (fromSocket <$> x))
-    ,(23, \(x:y:_) -> fmap Handle <$> connectToFromExpr x y)	
-	-- 30 ~ 39: file
-	,(30, \(x:_) -> fmap Handle <$> openFileFromExpr x)
-    ]
+--data LazyZExpr = Pure (Expr HandleAndSocket) | Function (LazyZExpr -> LazyZExpr) | IO (IO LazyZExpr)
+
+-- evalLazyZ :: LazyZExpr -> IO LazyZExpr
+
+externdataIO :: IO LazyZData -> LazyZExpr
+externdataIO x = Extern $ IO $ Extern <$> Data <$> x
+
+car x = apply x K
+cdr x = apply x (K :$ I)
+
+hFlushFromExpr :: LazyZExpr -> LazyZExpr
+hFlushFromExpr (Extern (Data (Handle h))) = Extern $ IO $ hFlush h >> return (K :$ K)
+
+getContentsFromExpr :: LazyZExpr -> LazyZExpr
+getContentsFromExpr (Extern (Data (Handle h))) = Extern $ IO $ fromString <$> hGetContents h
+
+getLineFromExpr :: LazyZExpr -> LazyZExpr
+getLineFromExpr (Extern (Data (Handle h))) = Extern $ IO $ fromString <$> hGetLine h
+
+putStrFromExpr :: LazyZExpr -> LazyZExpr -> LazyZExpr
+putStrFromExpr (Extern (Data (Handle h))) xs = Extern $ IO $ hPutStr h (toString xs) >> return (K :$ K)
+
+listenOnFromExpr :: LazyZExpr -> LazyZExpr
+listenOnFromExpr port = externdataIO $ Socket <$> listenOn (PortNumber $ toEnum $ decodeNum port)
+
+acceptFromExpr :: LazyZExpr -> LazyZExpr
+acceptFromExpr (Extern (Data (Socket sock))) = Extern $ IO $ encode <$> accept sock
+    where
+        encode (h, host, port) = fromList [Extern $ Data $ Handle h, fromString host, encodeNum (fromEnum port)]
+
+sCloseFromExpr :: LazyZExpr -> LazyZExpr
+sCloseFromExpr (Extern (Data (Socket sock))) = Extern $ IO $ sClose sock >> return (K :$ K)
+
+connectToFromExpr :: LazyZExpr -> LazyZExpr -> LazyZExpr
+connectToFromExpr host port = externdataIO $ Handle <$> connectTo (toString host) (PortNumber $ toEnum $ decodeNum port)
+
+openFileFromExpr :: LazyZExpr -> LazyZExpr
+openFileFromExpr path = externdataIO $ Handle <$> openFile (toString path) ReadWriteMode
+
+crystal :: Int -> LazyZExt
+crystal 0 = Function $ Extern . IO . return
+crystal 1 = Function $ Extern . IO . (return $!)
+crystal 2 = Function $ hFlushFromExpr
+crystal 10 = Data $ Handle stdin
+crystal 11 = Data $ Handle stdout
+crystal 12 = Data $ Handle stderr
+crystal 13 = Function  getContentsFromExpr
+crystal 14 = Function $ Extern . Function . putStrFromExpr
+crystal 15 = Function  getLineFromExpr
+-- 20 ~ 29: socket
+crystal 20 = Function listenOnFromExpr
+crystal 21 = Function acceptFromExpr
+crystal 22 = Function sCloseFromExpr
+crystal 23 = Function $ Extern . Function . connectToFromExpr
+-- 30 ~ 39: file
+crystal 30 = Function openFileFromExpr

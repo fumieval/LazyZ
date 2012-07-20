@@ -16,8 +16,14 @@ module LazyZ.Expr where
 import Prelude hiding (length)
 import Data.List (minimumBy)
 import Data.Function (on)
+import Control.Monad
+import Control.Monad.Trans
 
-data Expr e = I | K | S | Expr e :$ Expr e | Free String | Extern e deriving (Show, Eq, Ord)
+data Expr e = Expr e :$ Expr e -- application
+            | I | K | S -- primitive combinators
+            | Free String -- free variable
+            | Extern e -- external value
+              deriving (Show, Eq, Ord)
 
 instance Functor Expr where
     fmap f x = x >>= return . f
@@ -99,3 +105,28 @@ applyEx t (K :$ x) y = x
 applyEx t (S :$ x :$ y) z = applyEx t (applyEx t x z) (applyEx t y z)
 applyEx t (Extern x) (Extern y) = t x y
 applyEx t f g = f :$ g
+
+-- -------------------------------------------------------
+-- Transformers
+
+newtype ExprT m a = ExprT {runExprT :: m (Expr a)}
+
+mapExprT :: (m (Expr a) -> n (Expr b)) -> ExprT m a -> ExprT n b
+mapExprT f = ExprT . f . runExprT
+
+instance MonadTrans ExprT where
+    lift = ExprT . liftM Extern
+
+instance (Monad m) => Monad (ExprT m) where
+    return = lift . return
+    x >>= f = ExprT $ runExprT x >>= \v ->
+        case v of
+             s :$ t -> liftM2 (:$) (runExprT $ ExprT (return s) >>= f) (runExprT $ ExprT (return t) >>= f)
+             Extern y -> runExprT (f y)
+             I -> return I
+             K -> return K
+             S -> return S
+             Free x -> return $ Free x
+
+instance (MonadIO m) => MonadIO (ExprT m) where
+    liftIO = lift . liftIO

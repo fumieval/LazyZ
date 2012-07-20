@@ -10,7 +10,7 @@ import LazyZ.Syntax (lazyZparser, encodeLiteral)
 import LazyZ.Expr (Expr)
 import LazyZ.Builder(build)
 import LazyZ.LazyK
-import LazyZ.Interface (runLazyZWithSocket)
+import LazyZ.Interface (runLazyZ)
 
 buildFiles :: [FilePath] -> IO (Either String (Expr ()))
 buildFiles files = (`fmap`mapM (parseFromFile lazyZparser) files) $ \progs ->
@@ -31,10 +31,9 @@ main = getArgs >>= \args -> case args of
         >>= either (hPutStr stderr . show) runAndPrint
 		
     ("runZ":file:_) -> parseFromFile unlambdaParser file
-        >>= either (hPutStr stderr . show) runLazyZWithSocket
-		
+        >>= either (hPutStr stderr . show) (runLazyZ :: Expr () -> IO ())
     ("executeZ":xs) -> buildFiles xs
-        >>= either (hPutStr stderr) runLazyZWithSocket
+        >>= either (hPutStr stderr) (runLazyZ :: Expr () -> IO ())
     
     _ -> putStrLn "Usage: LazyZ (build|execute|run|executeZ|runZ) [input files]"
     where
