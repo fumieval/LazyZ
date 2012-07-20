@@ -11,7 +11,7 @@ Lazy Zは、Lazy Kの「組み込み関数がS、K、Iの3つしかない」と�
     str = (++) "Hello, world!" str; -- 文字列リテラル、再帰的定義
 
 # ビルド
-$ ghc -o LazyZ -O2 Main.hs LazyK.hs Combinator.hs Encoding.hs Expr.hs Program.hs Numbers.hs Syntax.hs
+$ ghc -o LazyZ -O2 Main.hs LazyK.hs Combinator.hs Encoding.hs Expr.hs Program.hs Numbers.hs Syntax.hs Builder.hs
     
 # コマンド
 * LazyZ (build|execute|run) [input file(s)]
