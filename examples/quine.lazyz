@@ -1,2 +1,0 @@
-
-repr xs = if (null xs) empty ((if ((==) 10 (head x)) ((.) (cons 92) (cons 110))) (repr (tail xs)));
