@@ -13,6 +13,15 @@ showUnlambda (Free x) = "[" ++ x ++ "]"
 showUnlambda (Extern e) = "<" ++ show e ++ ">"
 showUnlambda (a :$ b) = "`" ++ showUnlambda a ++ showUnlambda b
 
+showCC :: Show e => Bool -> Expr e -> String
+showCC _ I = "I"
+showCC _ K = "K"
+showCC _ S = "S"
+showCC _ (Free x) = "[" ++ x ++ "]"
+showCC _ (Extern e) = "<" ++ show e ++ ">"
+showCC False (a :$ b) = showCC False a ++ showCC True b
+showCC True (a :$ b) = "(" ++ showCC False a ++ showCC True b ++ ")"
+
 unlambdaParser :: Read e => Parser (Expr e)
 unlambdaParser = char '`' *> ((:$) <$> unlambdaParser <*> unlambdaParser)
     <|> char 's' *> pure S

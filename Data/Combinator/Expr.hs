@@ -22,6 +22,7 @@ infixl 9 :$
 data Expr e = Expr e :$ Expr e -- application
             | I | K | S -- primitive combinators
             | Free String -- free variable
+            | Atom (Expr e)
             | Extern e -- external value
               deriving (Show, Eq, Ord)
 
@@ -47,7 +48,7 @@ length _ = 1
 isPrim S = True
 isPrim K = True
 isPrim I = True
-isPrim _ = False
+isPrim x = False
 
 simpl (I :$ x) = simpl x
 simpl (K :$ x :$ y) = simpl x
@@ -109,6 +110,7 @@ apply f g = f :$ g
 
 -- | The 'eval' function evaluates an expression. 
 eval :: Expr e -> Expr e
+eval (Atom x) = x
 eval (f :$ g) = eval f `apply` eval g
 eval x = x
 

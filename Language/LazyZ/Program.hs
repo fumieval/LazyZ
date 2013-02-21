@@ -1,41 +1,37 @@
+{-# LANGUAGE DeriveFunctor #-}
 module Language.LazyZ.Program (
     ExprP(..)
     , length
     , vars
+    , replace
     , linkAll
     ) where
 
 import Prelude hiding (length)
 import Control.Applicative
-import Data.Maybe
-import Data.List ((\\))
 import qualified Data.Map as M
-import Data.Combinator.Expr (Expr, frees)
+import qualified Data.Combinator.Expr as Expr
 import Control.Monad.State
+import Data.Maybe (catMaybes)
 
 data ExprP e = Var String
              | Apply (ExprP e) (ExprP e)
              | Lambda String (ExprP e)
-			 | Embed (Expr e)
-             | External e deriving (Show, Eq)
-
-instance Functor ExprP where
-    fmap f (External e) = External $ f e
-    fmap f (Embed e) = Embed (fmap f e)
-    fmap _ (Var v) = Var v
-    fmap f (Apply x y) = fmap f x `Apply` fmap f y
-    fmap f (Lambda v b) = Lambda v $ fmap f b
+			 | LiftExpr (Expr.Expr e)
+             | External e deriving (Show, Eq, Functor)
 
 length :: ExprP e -> Int
 length (Apply x y) = length x + length y + 1
 length (Lambda v x) = length x + 1
+length (LiftExpr e) = Expr.length e
+
 length _ = 1
 
 vars :: ExprP e -> [String]
 vars (Var v) = [v]
 vars (Apply x y) = vars x ++ vars y
 vars (Lambda b x) = filter (/=b) $ vars x
-vars (Embed e) = frees e
+vars (LiftExpr e) = Expr.frees e
 vars _ = []
 
 replace :: String -> ExprP e -> ExprP e -> ExprP e
@@ -56,13 +52,13 @@ unique expr = uniq expr `evalState` 0 where
     uniq x = return x
 
 shorten :: ExprP e -> ExprP e
-shorten = short True . unique where
-    short _ e@(Apply (Lambda v x) y)
-        | length x' < length e = short True x'
-        where x' = replace v y x
-    short True (Apply x y) = short False $ short True x `Apply` short True y
-    short _ (Lambda v x) = Lambda v $ short True x
-    short _ x = x
+shorten = fuse True . unique where
+    fuse _ e@(Apply (Lambda v x) y)
+         | fromIntegral (length e') <= fromIntegral (length e) + 3 = e'
+        where e' = fuse True (replace v y x)
+    fuse True (Apply f g) = fuse False $ fuse True f `Apply` fuse True g
+    fuse _ (Lambda v x) = Lambda v $ fuse True x
+    fuse _ x = x
 
 linkBySubst :: String -- entrypoint
     -> M.Map String (ExprP e) -- definitions

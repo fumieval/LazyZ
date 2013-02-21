@@ -2,7 +2,7 @@
 --  see http://haskell.org/cabal/users-guide/
 
 name:                LazyZ
-version:             0.0.0.0
+version:             0.2.0
 synopsis:            Truly untyped pure functional programming language
 -- description:         
 homepage:            https://github.com/fumieval/LazyZ
@@ -17,11 +17,15 @@ cabal-version:       >=1.8
 
 library  
   exposed-modules: 
-    Data.Combinator.Encoding
-    , Data.Combinator.Expr
+    Data.Combinator.Expr
+    , Data.Combinator.Church
     , Language.LazyK.QQ
     , Language.LazyK.Syntax
     , Language.LazyZ.Builder
     , Language.LazyZ.Program
     , Language.LazyZ.Syntax
-  build-depends:       base ==4.6.*, void ==0.5.*, parsec ==3.1.*, containers ==0.5.*, template-haskell ==2.8.*, mtl==2.*
+  build-depends:       base ==4.*, void ==0.5.*, parsec ==3.*, containers ==0.5.*, template-haskell ==2.8.*, mtl==2.*, utf8-string ==0.3.*
+
+executable LazyZ
+  main-is: Main.hs
+  build-depends:    base ==4.*, parsec ==3.*, LazyZ

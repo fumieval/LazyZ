@@ -1,0 +1,75 @@
+--#infixr 0 $;
+--#infixr 4 ==;
+--#infixr 4 /=;
+--#infixr 4 <=;
+--#infixr 4 >=;
+--#infixr 4 <;
+--#infixr 4 >;
+--#infixr 5 :;
+--#infixr 5 ++;
+--#infixl 6 +;
+--#infixl 6 -;
+--#infixl 7 *;
+--#infixl 7 /;
+--#infixr 9 .;
+--#infixl 9 !!;
+
+-- basic functions
+I x = x;
+K x y = x;
+S x y z = x z (y z);
+id = I;
+const = K;
+flip f x y = f y x;
+(.) f g = \x -> f (g x);
+prim_fix f = [|SII|] (S (K f) [|SII|]);
+($) x y = x y;
+
+-- boolean operations
+True = \x y -> x;
+False = \x y -> y;
+if p x y = p x y;
+not p = p False True;
+and p q = p q False;
+or p q = p True q;
+
+-- list operations
+(:) x y = \f -> f x y;
+
+nil = \f -> True;
+
+head list = list $ \x xs -> x;
+
+tail list = list $ \x xs -> xs;
+
+null list = list (\x y -> False);
+
+(!!) list n = head (n tail list);
+
+repeat x = x : repeat x;
+
+(++) list ys = null list ys $ list $ \x xs -> x : xs ++ ys;
+
+map f list = null list nil $ list $ \x xs -> f x : map f xs;
+
+filter f list = null xs nil $ list $ \x xs -> f x ((:) x) id $ filter f xs;
+
+foldr f n list = null list n $ list $ \x xs -> x (foldr f n xs);
+
+endofoutput = const 256;
+
+-- Church numerals
+prim_nat = I;
+succ n = \f x -> f (n f x);
+(+) n = n succ;
+(*) a b = \f -> a (b f);
+(^) a b = b a;
+ifnonzero n x y = (n (const x)) y;
+
+(==) a = (!!) $ (a ((:) False)) (True : repeat False);
+(/=) a = (!!) $ (a ((:) True)) (False : repeat True);
+
+(<=) m n x y = (m (^) (const x)) (n (^) (const y));
+(>) m n x y = (<=) m n y x;
+(>=) m n x y = (<=) n m x y;
+(<) m n x y = (<=) n m y x;
