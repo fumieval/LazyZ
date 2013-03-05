@@ -14,3 +14,7 @@ Lazy Zは、Lazy Kの「組み込み関数がS、K、Iの3つしかない」と�
     nil = \f -> \x y -> y
 
     str = "Hello, world!" (:) nil ++ str; -- 文字列リテラル、再帰的定義
+    
+# 使い方
+    cabal install
+    LazyZ build prog.lazyz lib/prelude.lazyz > output.lazy
